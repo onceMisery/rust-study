@@ -14,6 +14,15 @@ let x = 5;
 let mut total = 0;
 total += 1;
 ```
+> mut 是 mutable 的缩写，意思是可变的。反义词：immutable（不可变的）
+
+```rust
+let x = 5;
+x = 6;  // ❌ 编译错误！不能修改不可变变量
+
+let mut y = 5;
+y = 6;  // ✅ 正确，y 是可变的
+```
 
 Rust 还支持遮蔽。遮蔽不是修改原变量，而是用同名的新绑定覆盖旧绑定：
 
