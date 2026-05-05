@@ -96,6 +96,12 @@ let numbers = [1, 2, 3, 4];
 ## 函数、参数与返回值
 
 Rust 函数使用 `fn` 定义，参数必须声明类型：
+```rust
+fn 函数名(参数名: 参数类型, ...) -> 返回值类型 {
+    // 函数体
+    // 最后一条表达式（不加分号）作为返回值
+}
+```
 
 ```rust
 fn factorial(number: u32) -> u32 {
@@ -107,7 +113,7 @@ fn factorial(number: u32) -> u32 {
         current -= 1;
     }
 
-    result
+    result  // 等价于 return result; 但一般不用，return一般用于提前返回
 }
 ```
 
