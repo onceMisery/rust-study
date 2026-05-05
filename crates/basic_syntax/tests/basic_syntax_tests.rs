@@ -17,4 +17,16 @@ fn basic_syntax_examples_are_runnable() {
     assert_eq!(classify_number(8), "positive-even");
     assert_eq!(control_flow_samples(4), vec![0, 1, 2, 3, 6, 4, 2]);
     assert_eq!(first_word("hello rust world"), "hello");
+    assert_eq!(basic_syntax::summarize_numbers(&[3, 1, 4]), (3, 8, Some(4)));
+    assert_eq!(basic_syntax::parse_port_with_shadowing(" 8080 "), Ok(8080));
+    assert_eq!(basic_syntax::checked_divide(10, 0), None);
+    assert_eq!(basic_syntax::grade(85), "B");
+    assert_eq!(
+        basic_syntax::normalize_username(" Alice Chen "),
+        "alice_chen"
+    );
+    assert_eq!(
+        basic_syntax::word_count("rust rust go").get("rust"),
+        Some(&2)
+    );
 }

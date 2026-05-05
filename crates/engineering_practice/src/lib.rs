@@ -9,6 +9,7 @@ pub mod concurrency;
 pub mod config;
 pub mod errors;
 pub mod math;
+pub mod task_tracker;
 
 pub use concurrency::{add_with_thread, shared_counter, sum_with_channel};
 pub use config::{find_config, parse_port};

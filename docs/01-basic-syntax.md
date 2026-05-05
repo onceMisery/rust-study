@@ -621,3 +621,46 @@ fn main() {
 
 > 注：Vec 的末尾插入是 O(1)+ 偶尔扩容，中间插入是 O(n)
 
+## 本章配套代码示例
+
+本章对应代码在 `crates/basic_syntax`。推荐运行：
+
+```powershell
+cargo run -p basic_syntax --example basic_tour
+```
+
+新增示例覆盖以下场景：
+
+| 函数 | 重点 | 场景 |
+| --- | --- | --- |
+| `immutable_then_shadow` | 不可变变量、遮蔽 | 配置字符串逐步转成强类型 |
+| `mutable_counter` | `mut` 与循环累加 | 手写计数器、学习状态变化 |
+| `summarize_numbers` | 切片、迭代器、返回元组 | 统计一组数字的长度、总和和最大值 |
+| `parse_port_with_shadowing` | `Result`、`?`、遮蔽 | 解析命令行端口或配置端口 |
+| `checked_divide` | `Option` | 除数为 0 时没有有效结果 |
+| `grade` | `match` 和范围模式 | 分数转等级 |
+| `normalize_username` | 字符串清洗 | 用户名规范化 |
+| `word_count` | `BTreeMap`、`entry` API | 文本词频统计 |
+
+示例：
+
+```rust
+let port = basic_syntax::parse_port_with_shadowing(" 8080 ")?;
+let username = basic_syntax::normalize_username(" Alice Chen ");
+let counts = basic_syntax::word_count("rust rust go");
+```
+
+这里已经开始出现工程中常见的写法：用 `Result` 表示可恢复错误，用 `Option` 表示可能不存在，用集合 API 避免手写复杂状态。
+
+## 与 Java、Go 的基础语法对比
+
+| 主题 | Rust | Java | Go |
+| --- | --- | --- | --- |
+| 变量默认行为 | 默认不可变，使用 `mut` 才能修改 | 局部变量默认可变，`final` 才不可变 | 变量默认可变，没有内置不可变绑定 |
+| 类型推断 | `let x = 1` 可推断，函数参数必须写类型 | `var` 支持局部推断，方法签名要写类型 | `:=` 支持推断，函数签名要写类型 |
+| 返回值 | 最后一个表达式可作为返回值 | 必须显式 `return` | 通常显式 `return`，支持多返回值 |
+| 空值 | 没有通用 `null`，用 `Option<T>` | 引用类型可为 `null`，容易 NPE | 指针、slice、map、interface 等可为 `nil` |
+| 字符串 | UTF-8，`String` 与 `&str` 区分明显 | UTF-16 风格抽象，`String` 不可变 | UTF-8 字节串，`string` 不可变 |
+| 集合 | `Vec`、`HashMap`、`BTreeMap` 等，所有权影响使用方式 | 集合生态成熟，GC 管理对象生命周期 | slice、map 是核心常用结构，语法简洁 |
+
+Rust 基础语法最重要的差异不是写法，而是“值的生命周期和所有权”从一开始就影响变量、字符串和集合的使用方式。Java 和 Go 初期更容易写起来，但很多空值、共享可变状态和资源释放问题会延后到运行时暴露；Rust 则倾向于在编译期提前暴露。

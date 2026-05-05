@@ -1,323 +1,72 @@
 # 阶段二：进阶特性
 
-## Rust 闭包与所有权
+这一章是 Rust 的核心。基础语法只是“会写 Rust”，进阶特性决定你是否真正理解 Rust 为什么能做到无 GC、内存安全和高性能。
 
-闭包（closure）是**可以捕获其环境中变量的匿名函数**。Rust 的闭包与所有权系统紧密结合，理解它们的关系非常重要。
+配套代码：
 
-## 一、闭包基础语法
-
-```rust
-fn main() {
-    // 闭包定义：|参数| -> 返回值 { 函数体 }
-    let add_one = |x: i32| -> i32 { x + 1 };
-    
-    // 类型可省略（编译器推导）
-    let add_one = |x| x + 1;
-    
-    // 调用闭包
-    let result = add_one(5);
-    println!("{}", result);  // 6
-    
-    // 多参数闭包
-    let multiply = |a, b| a * b;
-    println!("{}", multiply(3, 4));  // 12
-    
-    // 无参数闭包
-    let greet = || println!("Hello!");
-    greet();
-}
+```powershell
+cargo run -p advanced_features --example advanced_tour
 ```
 
-## 二、闭包捕获环境（核心特性）
+## 1. 所有权：谁负责释放资源
 
-**闭包可以自动捕获定义时所在作用域的变量：**
-
-```rust
-fn main() {
-    let x = 10;
-    let y = 20;
-    
-    // 闭包捕获了 x 和 y
-    let add = || {
-        println!("x + y = {}", x + y);
-    };
-    
-    add();  // 输出: x + y = 30
-}
-```
-
-### 三种捕获方式（对应三个 Fn 系列 trait [类似接口]）
-
-Rust 根据闭包如何使用捕获的变量，自动选择三种方式之一：
-
-| 方式         | 对应的 Trait | 转移所有权          | 使用场景          |
-|------------|-----------|----------------|---------------|
-| **Fn**     | `Fn`      | 不可变借用（`&T`）    | 只读访问，可多次调用    |
-| **FnMut**  | `FnMut`   | 可变借用（`&mut T`） | 修改捕获的变量，可多次调用 |
-| **FnOnce** | `FnOnce`  | 转移所有权（`T`）     | 只能调用一次        |
+Rust 的每个值都有一个所有者。所有者离开作用域时，值会被自动释放。
 
 ```rust
-fn main() {
-    let s = String::from("hello");
-    
-    // 1. Fn: 不可变借用（只读）
-    let read_only = || {
-        println!("{}", s);  // 只是读取，不修改
-    };
-    read_only();
-    read_only();  // 可以多次调用
-    println!("调用后仍可使用 s: {}", s);  // ✅ s 仍有效
-    
-    let mut count = 0;
-    
-    // 2. FnMut: 可变借用（修改）
-    let mut mutable = || {
-        count += 1;  // 修改捕获的变量
-        println!("count: {}", count);
-    };
-    mutable();
-    mutable();  // 可以多次调用
-    // println!("{}", count);  // ❌ 闭包还在借用 count
-    
-    // 3. FnOnce: 转移所有权
-    let s2 = String::from("world");
-    let takes_ownership = || {
-        drop(s2);  // 转移所有权给 drop 函数
-    };
-    takes_ownership();
-    // takes_ownership();  // ❌ 不能再次调用（s2 已被移动）
-    // println!("{}", s2);  // ❌ s2 所有权已转移
-}
+let text = String::from("ownership");
+let len = advanced_features::replace_with_length(text);
+// text 在这里不能再使用，因为所有权已经移动进函数
 ```
 
-## 三、闭包与所有权的详细示例
+这和 Java / Go 最大的不同是：Rust 没有 GC 后台回收对象，而是在编译期确定资源何时释放。
 
-### 示例 1：不可变借用（Fn）
+常见规则：
+
+1. 一个值同一时间只有一个所有者。
+2. 赋值、传参、返回值可能发生移动。
+3. 所有者离开作用域时自动释放值。
+
+如果你想保留原值，可以显式克隆：
 
 ```rust
-fn main() {
-    let data = vec![1, 2, 3];
-    
-    let print_data = || {
-        println!("{:?}", data);  // 只读借用
-    };
-    
-    print_data();
-    print_data();  // 可以多次调用
-    println!("仍然可以访问 data: {:?}", data);  // ✅ 所有权未转移
-}
+let (owned, len) = advanced_features::clone_then_keep_original("borrow");
 ```
 
-### 示例 2：可变借用（FnMut）
+注意：`clone` 对堆数据有复制成本。新手常见误区是遇到所有权错误就到处 `.clone()`；更好的做法是先判断函数到底需不需要取得所有权。
+
+## 2. 借用与引用：只看一眼，不拿走
+
+如果函数只需要读取数据，应该借用：
 
 ```rust
-fn main() {
-    let mut numbers = vec![1, 2, 3];
-    
-    let mut push_number = || {
-        numbers.push(4);  // 修改借用
-        println!("{:?}", numbers);
-    };
-    
-    push_number();  // [1, 2, 3, 4]
-    push_number();  // [1, 2, 3, 4, 4]
-    
-    // numbers.push(5);  // ❌ 闭包还在借用 numbers
-    drop(push_number);  // 手动释放闭包
-    numbers.push(5);    // ✅ 闭包结束后可以访问
-}
+let values = vec![1, 2, 3, 4];
+let sum = advanced_features::shared_borrow_sum(&values);
 ```
 
-### 示例 3：转移所有权（FnOnce）
+`&T` 是共享引用，可以同时存在多个。`&mut T` 是可变引用，同一时间只能存在一个：
 
 ```rust
-fn main() {
-    let s = String::from("Hello");
-    
-    let consume = || {
-        let owned = s;  // 转移所有权到闭包内
-        println!("{}", owned);
-        // s 在这里被 drop
-    };
-    
-    consume();
-    // consume();  // ❌ 不能调用两次
-    // println!("{}", s);  // ❌ s 所有权已转移
-}
+let mut title = String::from("Rust");
+advanced_features::append_suffix(&mut title, " 入门");
 ```
 
-### 示例 4：强制所有权转移（`move` 关键字）
+这条规则直接服务于并发安全：如果同一时间不允许多个写入者，也不允许读写混杂，很多数据竞争就不会出现。
 
-```rust
-fn main() {
-    let s = String::from("Hello");
-    
-    // 使用 move 强制将所有权转移到闭包中
-    let consume = move || {
-        println!("{}", s);
-        // s 被移动到闭包中
-    };
-    
-    consume();
-    // println!("{}", s);  // ❌ s 已被移动到闭包
-}
-```
+## 3. 栈、堆与移动
 
-**move 闭包的典型用途：多线程**
+一般可以这样理解：
 
-```rust
-use std::thread;
+| 数据 | 常见位置 | 行为 |
+| --- | --- | --- |
+| `i32`、`bool`、`char` | 栈 | 通常实现 `Copy`，赋值后原变量仍可用 |
+| `String`、`Vec<T>` | 栈上保存指针、长度、容量，真实数据在堆 | 默认移动所有权 |
+| `&T` | 栈上的引用值 | 借用，不拥有资源 |
 
-fn main() {
-    let data = vec![1, 2, 3];
-    
-    // move 将 data 的所有权转移到新线程
-    let handle = thread::spawn(move || {
-        println!("子线程: {:?}", data);
-    });
-    
-    handle.join().unwrap();
-    // println!("{:?}", data);  // ❌ data 已被移动到子线程
-}
-```
+`String` 移动时，不会复制堆上的全部字符，只复制栈上的指针、长度、容量，并让旧变量失效。这避免了双重释放。
 
-## 四、闭包作为函数参数
+## 4. 生命周期：引用不能比数据活得更久
 
-```rust
-// 三种泛型约束写法
-
-// 1. 接受不可变闭包（最常见）
-fn call_twice<F>(closure: F) 
-where
-    F: Fn(),
-{
-    closure();
-    closure();
-}
-
-// 2. 接受可变闭包
-fn modify<F>(mut closure: F)
-where
-    F: FnMut(),
-{
-    closure();
-    closure();
-}
-
-// 3. 接受一次性闭包
-fn run_once<F>(closure: F)
-where
-    F: FnOnce(),
-{
-    closure();
-}
-
-fn main() {
-    let x = 10;
-    let print = || println!("x = {}", x);
-    call_twice(print);  // ✅ Fn 可以传给所有类型
-    
-    let mut count = 0;
-    let increment = || count += 1;
-    modify(increment);  // ✅ FnMut
-    
-    let s = String::from("hello");
-    let consume = || drop(s);
-    run_once(consume);  // ✅ FnOnce
-}
-```
-
-## 五、返回闭包
-
-闭包大小未知，必须放在 `Box` 或使用 `impl Trait`：
-
-```rust
-// 方法1：使用 Box（动态分发）
-fn factory_one() -> Box<dyn Fn(i32) -> i32> {
-    Box::new(|x| x + 1)
-}
-
-// 方法2：使用 impl Trait（静态分发，Rust 2021+）
-fn factory_two() -> impl Fn(i32) -> i32 {
-    |x| x * 2
-}
-
-// 方法3：带 move 的返回
-fn factory_three() -> impl FnOnce() -> String {
-    let msg = String::from("Hello");
-    move || msg  // 返回所有权
-}
-
-fn main() {
-    let f1 = factory_one();
-    println!("{}", f1(5));  // 6
-    
-    let f2 = factory_two();
-    println!("{}", f2(5));  // 10
-    
-    let f3 = factory_three();
-    println!("{}", f3());   // Hello
-}
-```
-
-## 六、实战示例：自定义排序
-
-```rust
-#[derive(Debug)]
-struct Person {
-    name: String,
-    age: u32,
-}
-
-fn main() {
-    let mut people = vec![
-        Person { name: String::from("Alice"), age: 30 },
-        Person { name: String::from("Bob"), age: 25 },
-        Person { name: String::from("Charlie"), age: 35 },
-    ];
-    
-    // 按年龄排序（使用闭包）
-    people.sort_by(|a, b| a.age.cmp(&b.age));
-    println!("按年龄排序: {:?}", people);
-    
-    // 按名字长度排序
-    people.sort_by(|a, b| a.name.len().cmp(&b.name.len()));
-    println!("按名字长度排序: {:?}", people);
-    
-    // 使用外部参数进行过滤
-    let min_age = 30;
-    let adults: Vec<_> = people
-        .iter()
-        .filter(|p| p.age >= min_age)  // 捕获 min_age
-        .collect();
-    println!("成年人: {:?}", adults);
-}
-```
-
-## 七、所有权规则总结
-
-| 捕获方式          | 闭包类型     | 所有权变化 | 调用次数 | 外部变量状态  |
-|---------------|----------|-------|------|---------|
-| 只读借用          | `Fn`     | 无     | 多次   | 仍可用     |
-| 可变借用          | `FnMut`  | 临时借用  | 多次   | 闭包释放后可用 |
-| 转移所有权         | `FnOnce` | 转移    | 一次   | 不可再用    |
-| `move` + 转移   | `FnOnce` | 强制转移  | 一次   | 不可再用    |
-| `move` + 复制类型 | `Fn`     | 复制    | 多次   | 仍可用     |
-
-## 关键要点
-
-1. **闭包自动推断捕获方式**：根据使用情况决定 `Fn`/`FnMut`/`FnOnce`
-2. **默认不可变借用**：尽量不转移所有权
-3. **用 `move` 强制转移**：需要所有权时（如多线程）
-4. **函数参数用泛型约束**：`F: Fn()` 而不是直接使用 `impl`
-5. **返回闭包用 `Box` 或 `impl Trait`**
-6. **闭包大小未知**：不能直接返回裸闭包
-
-Rust 的闭包设计既提供了类似动态语言的便利性，又保持了所有权系统的安全性，是 Rust 表达力的重要体现。
-
-## 生命周期
-
-生命周期描述引用有效多久。多数情况下编译器能自动推导；当一个函数返回的引用可能来自多个输入引用时，需要显式标注：
+大多数生命周期由编译器自动推导。只有当返回引用和多个输入引用相关时，才需要显式标注：
 
 ```rust
 pub fn longest<'a>(left: &'a str, right: &'a str) -> &'a str {
@@ -329,13 +78,17 @@ pub fn longest<'a>(left: &'a str, right: &'a str) -> &'a str {
 }
 ```
 
-这里的 `'a` 表示返回值不会比 `left` 和 `right` 中较短的那个活得更久。生命周期不是延长变量寿命，而是告诉编译器引用之间的关系。
+`'a` 的意思不是“让变量活得更久”，而是说明返回值和输入值之间的借用关系：返回引用的有效期不能超过两个输入引用的共同有效期。
 
-注意事项：不要一遇到生命周期报错就到处加 `'static`。`'static` 表示引用可存活整个程序周期，通常不是业务数据真正需要的语义。
+新手注意：
 
-## Trait：接口、默认方法与动态能力
+- 不要把生命周期当成语法补丁。
+- 不要随便写 `'static`。
+- 如果生命周期标注越来越复杂，通常说明数据所有权边界需要重新设计。
 
-trait 类似 Java 的 interface 或 Go 的 interface，但它和泛型、静态分发结合更紧密：
+## 5. Trait：Rust 的接口抽象
+
+trait 类似 Java 的 interface，也类似 Go 的 interface，但 Rust 的 trait 更常和泛型一起使用：
 
 ```rust
 pub trait Summary {
@@ -357,11 +110,33 @@ impl Summary for Point {
 }
 ```
 
-默认方法适合提供通用行为，具体类型只需要实现最核心的方法。
+默认方法适合放通用逻辑，具体类型只实现必要方法即可。
 
-## 泛型与类型参数约束
+使用 trait 作为参数：
 
-泛型让代码可以处理多种类型，trait bound 则说明这些类型必须具备哪些能力：
+```rust
+pub fn notify(item: &impl Summary) -> String {
+    format!("通知: {}", item.summary())
+}
+```
+
+实际应用场景：
+
+- 日志格式化：不同事件实现同一个 `Summary`。
+- 持久化抽象：不同存储后端实现同一个 `Repository`。
+- 业务规则扩展：不同策略实现同一个 trait。
+
+## 6. 泛型与约束
+
+泛型让容器或函数能处理多种类型：
+
+```rust
+pub struct Container<T> {
+    items: Vec<T>,
+}
+```
+
+但泛型不是“什么都能做”。如果你要比较大小，需要约束：
 
 ```rust
 impl<T> Container<T>
@@ -374,6 +149,56 @@ where
 }
 ```
 
-这里 `T: Ord + Copy` 表示元素既能比较大小，也能按位复制。Rust 泛型默认使用单态化：编译器会为具体类型生成专门代码，因此通常没有运行时泛型开销。
+`T: Ord + Copy` 表示：元素必须能排序，并且能被复制出来。
 
-最佳实践：函数参数优先使用最小必要约束。例如只需要打印就约束 `Display`，不要要求更强的 trait。
+最佳实践：约束越小越好。只需要打印就用 `Display`，只需要排序就用 `Ord`，不要为了省事加一堆不必要约束。
+
+## 7. 闭包：能捕获环境的匿名函数
+
+闭包可以捕获外部变量：
+
+```rust
+let min_amount = 100;
+let filtered: Vec<_> = amounts
+    .iter()
+    .copied()
+    .filter(|amount| *amount >= min_amount)
+    .collect();
+```
+
+Rust 根据闭包如何使用捕获变量，自动推导它实现哪个 trait：
+
+| trait | 捕获方式 | 调用次数 | 场景 |
+| --- | --- | --- | --- |
+| `Fn` | 共享借用 | 可多次 | 只读过滤、格式化 |
+| `FnMut` | 可变借用 | 可多次 | 累加计数、修改外部状态 |
+| `FnOnce` | 取得所有权 | 通常一次 | 消费资源、线程 `move` |
+
+示例代码：
+
+```rust
+let doubled = advanced_features::apply_twice(3, |x| x * 2);
+let amounts = advanced_features::filter_amounts(&[99, 120, 300], 100);
+```
+
+闭包在 Rust 中很常见，尤其是迭代器、线程、异步任务和回调式 API。
+
+## 本章注意事项
+
+- 所有权错误先想“谁拥有数据”，不要急着 `clone`。
+- 参数优先用借用，只有确实要接管资源时才用拥有类型。
+- 生命周期标注描述关系，不负责延长引用寿命。
+- trait 是 Rust 抽象能力的核心，优先学会 trait bound。
+- 闭包不是简单语法糖，它和所有权捕获方式绑定。
+
+## 与 Java、Go 的进阶特性对比
+
+| 主题 | Rust | Java | Go |
+| --- | --- | --- | --- |
+| 内存管理 | 所有权、借用、生命周期，编译期检查 | GC 管理对象生命周期 | GC 管理对象生命周期 |
+| 接口抽象 | trait 显式实现，可做泛型约束 | interface/class 体系，OOP 风格强 | interface 隐式实现，组合简单 |
+| 泛型实现 | 单态化，通常无运行时泛型开销 | 主要是类型擦除 | 编译器支持类型参数，语法较轻 |
+| 闭包捕获 | 捕获方式受所有权约束，区分 `Fn/FnMut/FnOnce` | lambda 捕获 effectively final 变量 | 闭包捕获变量，常和 goroutine 使用 |
+| 并发安全基础 | 类型系统阻止数据竞争 | 依靠库、锁和运行时约定 | 依靠 channel、锁和开发者约定 |
+
+Java 和 Go 更强调降低日常业务开发复杂度；Rust 更强调把资源管理和并发安全放到类型系统里。代价是学习曲线更高，收益是在系统级、性能敏感和高可靠场景中减少运行时不确定性。

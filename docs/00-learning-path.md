@@ -32,12 +32,13 @@ cargo run -p advanced_features --example advanced_tour
 
 ```powershell
 cargo run -p engineering_practice --example engineering_tour
+cargo run -p engineering_practice --example task_tracker_demo
 ```
 
 ## 阶段四：和 Java / Go 对比
 
-目标是建立语言设计层面的判断力。Rust 适合对性能、资源控制、可靠性要求很高的系统；Java 适合成熟企业生态和大型业务系统；Go
-适合网络服务、云原生工具和简单并发服务。
+目标是建立语言设计层面的判断力。每个章节末尾都有 Java / Go 对比，最后再通过独立对比章节做总览。Rust
+适合对性能、资源控制、可靠性要求很高的系统；Java 适合成熟企业生态和大型业务系统；Go 适合网络服务、云原生工具和简单并发服务。
 
 ## 建议节奏
 
@@ -210,4 +211,3 @@ my_project/
 4. **管理版本**：遵循语义化版本，可以精确控制更新范围
 5. **无需手动管理类路径**：Cargo 自动处理所有依赖关系
 6. **`Cargo.lock`** 会锁定确切版本，确保团队/生产环境依赖一致
-
