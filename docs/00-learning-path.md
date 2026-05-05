@@ -40,6 +40,18 @@ cargo run -p engineering_practice --example task_tracker_demo
 目标是建立语言设计层面的判断力。每个章节末尾都有 Java / Go 对比，最后再通过独立对比章节做总览。Rust
 适合对性能、资源控制、可靠性要求很高的系统；Java 适合成熟企业生态和大型业务系统；Go 适合网络服务、云原生工具和简单并发服务。
 
+## 阶段五：完整 Web 工程案例
+
+目标是从零构建一个个人本地博客系统，技术栈包括 Axum、SQLx、Tera、SQLite、Markdown 渲染和简单后台认证。
+
+配套文档：[06-build-local-blog-with-axum.md](06-build-local-blog-with-axum.md)
+
+配套代码：
+
+```powershell
+cargo run -p blog
+```
+
 ## 建议节奏
 
 1. 每读完一节，运行对应 example。

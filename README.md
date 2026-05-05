@@ -9,7 +9,8 @@
 3. 学习 [docs/02-advanced-features.md](docs/02-advanced-features.md)，理解所有权、借用、生命周期、trait 与泛型。
 4. 学习 [docs/03-engineering-practice.md](docs/03-engineering-practice.md)，掌握模块、Cargo、错误处理、并发与测试。
 5. 跟做 [docs/05-build-task-tracker-from-zero.md](docs/05-build-task-tracker-from-zero.md)，从零构建一个任务看板小项目。
-6. 阅读 [docs/04-rust-java-go-comparison.md](docs/04-rust-java-go-comparison.md)，从 Java / Go 对比中理解 Rust 的设计取舍。
+6. 跟做 [docs/06-build-local-blog-with-axum.md](docs/06-build-local-blog-with-axum.md)，开发一个本地部署博客系统。
+7. 阅读 [docs/04-rust-java-go-comparison.md](docs/04-rust-java-go-comparison.md)，从 Java / Go 对比中理解 Rust 的设计取舍。
 
 ## 运行命令
 
@@ -19,6 +20,7 @@ cargo run -p basic_syntax --example basic_tour
 cargo run -p advanced_features --example advanced_tour
 cargo run -p engineering_practice --example engineering_tour
 cargo run -p engineering_practice --example task_tracker_demo
+cargo run -p blog
 ```
 
 ## 项目结构
@@ -28,5 +30,6 @@ crates/
   basic_syntax/          # 基础语法示例
   advanced_features/     # 所有权、生命周期、trait、泛型
   engineering_practice/  # 模块、错误处理、并发、测试
+blog/                    # Axum + SQLx + Tera + SQLite 博客系统
 docs/                    # 中文学习文档
 ```

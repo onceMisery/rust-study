@@ -3,5 +3,6 @@ members = [
     "crates/basic_syntax",
     "crates/advanced_features",
     "crates/engineering_practice",
+    "blog",
 ]
 resolver = "2"

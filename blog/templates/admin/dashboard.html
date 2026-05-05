@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}后台 - {{ site_title }}{% endblock title %}
+{% block content %}
+<section class="admin-toolbar">
+  <h1>后台</h1>
+  <div>
+    <a class="button" href="/admin/posts/new">新建文章</a>
+    <form method="post" action="/admin/logout" class="inline-form">
+      <button type="submit">退出</button>
+    </form>
+  </div>
+</section>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>标题</th>
+      <th>Slug</th>
+      <th>状态</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for post in posts %}
+      <tr>
+        <td>{{ post.id }}</td>
+        <td>{{ post.title }}</td>
+        <td>{{ post.slug }}</td>
+        <td>{% if post.published %}已发布{% else %}草稿{% endif %}</td>
+        <td class="actions">
+          <a href="/admin/posts/{{ post.id }}/edit">编辑</a>
+          <form method="post" action="/admin/posts/{{ post.id }}/delete">
+            <button type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock content %}

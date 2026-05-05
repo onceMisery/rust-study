@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}新建文章 - {{ site_title }}{% endblock title %}
+{% block content %}
+<h1>新建文章</h1>
+<form method="post" action="/admin/posts" class="form">
+  <label>标题 <input name="title" required></label>
+  <label>Slug <input name="slug" placeholder="hello-rust" required></label>
+  <label>摘要 <textarea name="summary" rows="3"></textarea></label>
+  <label>Markdown <textarea name="markdown" rows="18" required># 新文章</textarea></label>
+  <label class="checkbox">
+    <input type="checkbox" name="published">
+    发布
+  </label>
+  <button type="submit">创建</button>
+</form>
+{% endblock content %}

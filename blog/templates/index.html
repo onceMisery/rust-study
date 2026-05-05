@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ site_title }} - 首页{% endblock title %}
+{% block content %}
+<section class="post-list">
+  <h1>文章</h1>
+  {% for post in posts %}
+    <article class="post-card">
+      <h2><a href="/posts/{{ post.slug }}">{{ post.title }}</a></h2>
+      <p class="meta">{{ post.created_at }}</p>
+      <p>{{ post.summary }}</p>
+    </article>
+  {% else %}
+    <p>暂无已发布文章。</p>
+  {% endfor %}
+</section>
+{% endblock content %}

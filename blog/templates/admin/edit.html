@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}编辑文章 - {{ site_title }}{% endblock title %}
+{% block content %}
+<h1>编辑文章</h1>
+<form method="post" action="/admin/posts/{{ post.id }}" class="form">
+  <label>标题 <input name="title" value="{{ post.title }}" required></label>
+  <label>Slug <input name="slug" value="{{ post.slug }}" required></label>
+  <label>摘要 <textarea name="summary" rows="3">{{ post.summary }}</textarea></label>
+  <label>Markdown <textarea name="markdown" rows="18" required>{{ post.markdown }}</textarea></label>
+  <label class="checkbox">
+    <input type="checkbox" name="published" {% if post.published %}checked{% endif %}>
+    发布
+  </label>
+  <button type="submit">保存</button>
+</form>
+{% endblock content %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} - {{ site_title }}{% endblock title %}
+{% block content %}
+<article class="post-detail">
+  <h1>{{ post.title }}</h1>
+  <p class="meta">{{ post.created_at }}</p>
+  <div class="markdown">{{ post_html | safe }}</div>
+</article>
+
+<section class="comments">
+  <h2>评论</h2>
+  {% for comment in comments %}
+    <article class="comment">
+      <strong>{{ comment.author }}</strong>
+      <span class="meta">{{ comment.created_at }}</span>
+      <p>{{ comment.body }}</p>
+    </article>
+  {% else %}
+    <p>还没有评论。</p>
+  {% endfor %}
+
+  <form method="post" action="/posts/{{ post.slug }}/comments" class="form">
+    <label>昵称 <input name="author" required></label>
+    <label>评论 <textarea name="body" rows="4" required></textarea></label>
+    <button type="submit">提交评论</button>
+  </form>
+</section>
+{% endblock content %}

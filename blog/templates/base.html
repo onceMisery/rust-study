@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site_title }}{% endblock title %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">{{ site_title }}</a>
+    <nav>
+      <a href="/">首页</a>
+      <a href="/rss.xml">RSS</a>
+      <a href="/admin">后台</a>
+    </nav>
+  </header>
+  <main class="page">
+    {% block content %}{% endblock content %}
+  </main>
+  <script src="/static/highlight.js"></script>
+</body>
+</html>
