@@ -65,6 +65,38 @@ println!("{:?}", basic_syntax::shadowing_type_change(" 42 "));
 // 输出: Ok(420)
 ```
 
+**第一个函数 `immutable_then_shadow(5)` 的执行过程：**
+
+```rust
+pub fn immutable_then_shadow(input: i32) -> String {
+    let value = input;        // value = 5（不可变绑定）
+    let value = value * 2;    // 遮蔽：创建新的 value = 10（旧的 value 被覆盖）
+    format!("原始值: {input}, 遮蔽后: {value}")
+}
+```
+
+- 第一步：`let value = input` 把参数 5 绑定到 `value`，此时 `value` 是 i32 类型，值为 5。
+- 第二步：`let value = value * 2` 用同名变量遮蔽——这不是修改原来的 `value`，而是创建了一个全新的 `value`，值是 5 × 2 = 10。
+- `format!` 宏中 `{input}` 引用的是函数参数（始终是 5），`{value}` 引用的是遮蔽后的新变量（10），所以输出 `原始值: 5, 遮蔽后: 10`。
+
+**第二个函数 `shadowing_type_change(" 42 ")` 的执行过程：**
+
+```rust
+pub fn shadowing_type_change(raw: &str) -> Result<u32, ParseIntError> {
+    let value = raw.trim();        // value: &str = "42"（去空白）
+    let value: u32 = value.parse()?;  // 遮蔽：value: u32 = 42（类型从 &str 变成了 u32）
+    let value = value * 10;        // 遮蔽：value: u32 = 420
+    Ok(value)
+}
+```
+
+- 第一步：`raw.trim()` 去掉前后空白，`value` 的类型是 `&str`，值为 `"42"`。
+- 第二步：`value.parse()?` 把字符串解析成 `u32`，遮蔽后的 `value` **类型变成了 `u32`**，值为 42。注意 `?` 会在解析失败时提前返回错误。
+- 第三步：`value * 10` 计算 42 × 10 = 420，再次遮蔽产生新的 `value`。
+- 最终返回 `Ok(420)`，所以 `{:?}`（Debug 格式）打印出 `Ok(420)`。
+
+这两个例子展示了遮蔽的两个核心能力：**不修改原变量就能用新值覆盖旧名**，以及**允许在遮蔽时改变类型**（从 `&str` 到 `u32`）。
+
 ### 与 Java/Go 对比
 
 | 特性 | Rust | Java | Go |
@@ -185,7 +217,11 @@ let v = vec![1, 2, 3, 4, 5];   // 栈: [ptr, len=5, cap=5]  堆: [1,2,3,4,5]
 
 ## 4. String 与 &str
 
-### String：可变、有所有权的堆字符串
+Rust 的字符串有两种主要类型：`String`（有所有权的堆字符串）和 `&str`（借用的字符串切片）。理解它们的区别是 Rust 入门的关键一步。
+
+### 4.1 基础定义
+
+#### String：可变、有所有权的堆字符串
 
 ```rust
 let mut s = String::from("hello");
@@ -193,35 +229,379 @@ s.push_str(" world");
 println!("{}", s);  // hello world
 ```
 
-### &str：不可变的字符串切片（借用）
+#### &str：不可变的字符串切片（借用）
 
 ```rust
 let s: &str = "hello";           // 字符串字面量
 let sub: &str = &s[0..3];        // 切片
 ```
 
-### 转换关系
+### 4.2 内存布局差异
 
-```rust
-// &str → String（堆分配）
-let owned = "hello".to_string();
-let owned2 = String::from("world");
+`String` 和 `&str` 在内存中的存储方式完全不同，这决定了它们的使用场景：
 
-// String → &str（零成本借用）
-let borrowed: &str = &owned;
+```
+String（3 个字在栈上 + 真实数据在堆上）:
+┌──────────────────────┐     ┌─────────────────┐
+│ ptr ───────────────────────▶ h e l l o         │  堆
+│ len: 5                 │     └─────────────────┘
+│ cap: 5                 │
+└──────────────────────┘
+        栈（24 字节）
+
+&str（2 个字在栈上，指向已有数据）:
+┌──────────────────────┐
+│ ptr ──── 指向某处       │     可以是：堆上的 String 数据、
+│ len: 5                 │     栈上的数组、或二进制段中的字面量
+└──────────────────────┘
+        栈（16 字节）
 ```
 
-### String vs &str 核心对比
+实际演示：
 
-| 特性 | `String` | `&str` |
-|------|----------|--------|
-| 可变性 | ✅ 可变 | ❌ 不可变 |
-| 所有权 | 拥有 | 借用 |
-| 内存 | 堆上 | 可在堆、栈或二进制段 |
-| 使用场景 | 需要修改或拥有数据时 | 只读参数、字面量 |
-| 函数参数 | 不推荐（强制调用方转移所有权） | ✅ 推荐（灵活） |
+```rust
+fn main() {
+    // String: 堆上分配，栈上保存指针/长度/容量
+    let owned = String::from("hello");
+    println!("String: '{}' (len={}, 栈上大小={}字节)",
+        owned, owned.len(), std::mem::size_of_val(&owned));
+    // 输出: String: 'hello' (len=5, 栈上大小=24字节)
 
-### 常见操作
+    // &str 字面量: 数据嵌入二进制文件，栈上只有指针+长度
+    let literal: &str = "hello";
+    println!("&str: '{}' (len={}, 栈上大小={}字节)",
+        literal, literal.len(), std::mem::size_of_val(&literal));
+    // 输出: &str: 'hello' (len=5, 栈上大小=16字节)
+
+    // &str 切片: 指向 String 内部的某段数据
+    let slice: &str = &owned[1..4];  // "ell"
+    println!("slice: '{}' (len={}, 栈上大小={}字节)",
+        slice, slice.len(), std::mem::size_of_val(&slice));
+    // 输出: slice: 'ell' (len=3, 栈上大小=16字节)
+}
+```
+
+关键结论：
+
+| 类型 | 栈上大小 | 数据位置 | 说明 |
+|------|---------|---------|------|
+| `String` | 24 字节（ptr + len + cap） | 堆 | 拥有数据，负责释放 |
+| `&str` | 16 字节（ptr + len） | 借用他处 | 不拥有数据，不负责释放 |
+
+### 4.3 函数参数：&str vs String
+
+这是初学者最常困惑的地方。核心原则：**函数只需要读取字符串时，参数用 `&str`。**
+
+#### 反例：用 String 作参数
+
+```rust
+// ❌ 不推荐：强制调用方转移所有权或 clone
+fn greet(name: String) {
+    println!("Hello, {}!", name);
+}
+
+fn main() {
+    let name = String::from("Alice");
+    greet(name.clone());     // 必须 clone 才能在之后继续使用 name
+    // greet("Bob");         // ❌ 编译错误！字面量是 &str，不能直接转成 String
+    greet("Bob".to_string()); // 必须手动转换，不方便
+}
+```
+
+#### 正确做法：用 &str 作参数
+
+```rust
+// ✅ 推荐：借用，零成本，灵活
+fn greet(name: &str) {
+    println!("Hello, {}!", name);
+}
+
+fn main() {
+    let name = String::from("Alice");
+    greet(&name);            // ✅ 传入 &String（自动解引用为 &str）
+    greet("Bob");            // ✅ 直接传字面量
+    greet(&name[0..3]);      // ✅ 传入切片
+    println!("{}", name);    // ✅ name 仍然可用（只是借用，没有转移所有权）
+}
+```
+
+#### 什么时候参数用 String？
+
+只有当函数需要**拥有**这个字符串（存储、返回、跨线程传递）时才用 `String`：
+
+```rust
+// ✅ 正确场景：函数需要拥有数据
+fn store_username(raw: &str) -> String {
+    // 清洗并存储，返回拥有所有权的 String
+    raw.trim().to_lowercase().replace(' ', "_")
+}
+
+// ✅ 正确场景：构建数据结构
+struct Config {
+    name: String,  // 结构体拥有 name 的所有权
+}
+
+impl Config {
+    fn new(name: &str) -> Self {  // 参数用 &str
+        Self { name: name.to_string() }  // 内部转成 String 存储
+    }
+}
+```
+
+#### 参数选择决策树
+
+```
+函数需要修改字符串吗？
+├─ 是 → &mut String
+└─ 否 → 函数需要拥有/存储/返回这个字符串吗？
+        ├─ 是 → String（但建议参数仍用 &str，内部 .to_string()）
+        └─ 否 → &str ← 大多数情况
+```
+
+### 4.4 转换关系详解
+
+String、&str 和字符串字面量之间可以自由转换：
+
+```rust
+fn main() {
+    // === &str → String（堆分配，有成本） ===
+    let s1: String = "hello".to_string();       // 方法 1
+    let s2: String = String::from("hello");     // 方法 2（等价）
+    let s3: String = "hello".to_owned();        // 方法 3（等价）
+    let s4: String = format!("hello {}", 42);   // format! 返回 String
+
+    // === String → &str（零成本借用） ===
+    let owned = String::from("hello world");
+    let borrowed: &str = &owned;                // 自动 Deref
+    let slice: &str = &owned[0..5];             // 切片也是 &str
+    let explicit: &str = owned.as_str();        // 显式方法
+
+    // === 字符串字面量 本质上是 &'static str ===
+    let lit: &str = "hello";  // 类型是 &'static str
+    // 数据嵌入在二进制文件中，程序运行期间始终有效
+
+    // === String → String（克隆，有成本） ===
+    let original = String::from("hello");
+    let cloned = original.clone();  // 深拷贝堆数据
+    // original 和 cloned 是独立的两份数据
+
+    // === 实用转换场景 ===
+    let input: &str = "  42  ";
+    let trimmed: &str = input.trim();                  // &str → &str
+    let parsed: u32 = trimmed.parse().unwrap();         // &str → u32
+    let displayed: String = parsed.to_string();          // u32 → String
+    let combined: String = format!("值: {}", parsed);   // 任意类型 → String
+
+    println!("{}", combined);  // "值: 42"
+}
+```
+
+转换成本总结：
+
+| 转换方向 | 方法 | 成本 | 说明 |
+|----------|------|------|------|
+| `&str` → `String` | `.to_string()` / `String::from()` | 堆分配 | 复制全部数据到堆 |
+| `String` → `&str` | `&s` / `.as_str()` | 零成本 | 只是创建引用 |
+| `String` → `String` | `.clone()` | 堆分配 | 深拷贝 |
+| `&str` → `&str` | `.trim()` / 切片 | 零成本 | 只移动指针 |
+| 任意类型 → `String` | `format!()` / `.to_string()` | 堆分配 | 格式化输出 |
+
+### 4.5 实际业务场景
+
+#### 场景一：文本解析（参数用 &str，返回用 String）
+
+```rust
+/// 清洗用户名：去空白、转小写、替换空格
+fn normalize_username(raw: &str) -> String {
+    raw.trim().to_lowercase().replace(' ', "_")
+}
+
+// 调用方可以传任何类型的字符串
+let user1 = normalize_username(" Alice Chen ");     // 字面量
+let name = String::from(" Bob Smith ");
+let user2 = normalize_username(&name);              // &String
+let user3 = normalize_username(&name[1..8]);        // 切片
+```
+
+> 参数用 `&str`：函数只读，不需要拥有输入数据。返回用 `String`：结果是新生成的数据，调用方需要拥有它。
+
+#### 场景二：配置读取（参数用 &str，内部存储为 String）
+
+```rust
+struct AppConfig {
+    host: String,
+    port: u16,
+}
+
+impl AppConfig {
+    fn from_line(line: &str) -> Option<Self> {
+        // line 是临时的，解析后把需要的字段转成 String 存储
+        let parts: Vec<&str> = line.splitn(2, '=').collect();
+        if parts.len() != 2 { return None; }
+
+        let key = parts[0].trim();
+        let value = parts[1].trim();
+
+        match key {
+            "host" => Some(Self { host: value.to_string(), port: 8080 }),
+            _ => None,
+        }
+    }
+}
+```
+
+> `line` 参数是临时的（可能来自文件的某一行），解析完成后就不需要了。所以参数用 `&str`，只有真正要保存的字段才转成 `String`。
+
+#### 场景三：API 调用中的字符串拼接
+
+```rust
+fn build_url(base: &str, path: &str, query: &str) -> String {
+    if query.is_empty() {
+        format!("{}{}", base, path)
+    } else {
+        format!("{}{}?{}", base, path, query)
+    }
+}
+
+// 调用灵活
+let url = build_url("https://api.example.com", "/users", "page=1&limit=10");
+let url2 = build_url("https://example.com", "/health", "");
+```
+
+> 所有参数都是 `&str`（只读），返回值是 `String`（新构建的 URL）。
+
+### 4.6 常见错误及解决方案
+
+#### 错误 1：对 String 使用字节索引
+
+```rust
+let s = String::from("你好世界");
+// let c = s[0];  // ❌ 编译错误：String 不支持索引
+// let c = &s[0..1];  // ❌ 运行时 panic：1 不是字符边界（'你' 占 3 字节）
+
+// ✅ 正确做法：用 chars() 遍历
+let first_char: char = s.chars().next().unwrap();  // '你'
+let char_count = s.chars().count();                 // 4
+
+// ✅ 如果确实需要按位置取子串
+let first_two: String = s.chars().take(2).collect();  // "你好"
+```
+
+**原因**：Rust 字符串是 UTF-8 编码，每个字符占 1-4 字节。索引是按字节的，很容易切到字符中间。
+
+#### 错误 2：混淆 len() 和字符数
+
+```rust
+let s = "hello";
+println!("len={}", s.len());               // 5（字节数）
+println!("chars={}", s.chars().count());    // 5（字符数）
+
+let s = "你好";
+println!("len={}", s.len());               // 6（字节数！每个中文占 3 字节）
+println!("chars={}", s.chars().count());    // 2（字符数）
+```
+
+**记住**：`.len()` 返回的是**字节数**，不是字符数。需要字符数时用 `.chars().count()`。
+
+#### 错误 3：在不需要所有权的地方使用 String
+
+```rust
+// ❌ 不推荐：不必要地转移所有权
+fn print_name(name: String) {
+    println!("{}", name);
+}
+let name = String::from("Alice");
+print_name(name);
+// println!("{}", name);  // ❌ name 已经移动，不能再使用
+
+// ✅ 推荐：借用
+fn print_name(name: &str) {
+    println!("{}", name);
+}
+let name = String::from("Alice");
+print_name(&name);
+println!("{}", name);  // ✅ name 仍然可用
+```
+
+#### 错误 4：在循环中反复分配 String
+
+```rust
+// ❌ 每次循环都创建新 String
+let words = vec!["hello", "world", "rust"];
+let mut result = String::new();
+for word in &words {
+    result = result + " " + word;  // 每次拼接都创建新 String
+}
+
+// ✅ 推荐：预分配或用 push_str
+let mut result = String::with_capacity(50);  // 预分配
+for word in &words {
+    result.push(' ');
+    result.push_str(word);  // 在原 String 上追加，不重新分配
+}
+
+// ✅ 更简洁：用 join
+let result = words.join(" ");
+```
+
+#### 错误 5：忘记 String 和 &str 的比较需要显式处理
+
+```rust
+let owned = String::from("hello");
+let borrowed: &str = "hello";
+
+// ✅ 可以直接比较（Rust 自动解引用）
+assert!(owned == borrowed);
+assert_eq!(owned, borrowed);
+
+// ✅ 也可以比较切片
+assert!(owned.starts_with("hel"));
+assert!(owned.contains("ell"));
+```
+
+### 4.7 性能差异
+
+```rust
+use std::time::Instant;
+
+fn main() {
+    let text = "the quick brown fox jumps over the lazy dog";
+    let iterations = 100_000;
+
+    // 测试 1：&str 操作（零成本借用）
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let _trimmed = text.trim();         // 零成本
+        let _first = text.split(' ').next(); // 零成本
+    }
+    let str_time = start.elapsed();
+
+    // 测试 2：String 操作（每次堆分配）
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let _owned = text.to_string();          // 堆分配
+        let _upper = text.to_uppercase();       // 堆分配
+    }
+    let string_time = start.elapsed();
+
+    println!("&str 操作: {:?}", str_time);       // 约 1-2ms
+    println!("String 操作: {:?}", string_time);   // 约 20-50ms
+    // String 操作通常比 &str 操作慢 10-50 倍
+}
+```
+
+**性能原则**：
+
+| 操作 | 成本 | 说明 |
+|------|------|------|
+| `&str` 切片/trim/split | 零成本 | 只移动指针 |
+| `.len()` / `.is_empty()` | O(1) | 直接读取元数据 |
+| `.to_string()` / `.to_owned()` | O(n) | 复制全部字节到堆 |
+| `.clone()` | O(n) | 深拷贝堆数据 |
+| `format!()` | O(n) | 堆分配 + 格式化 |
+| `.contains()` / `.find()` | O(n) | 需要遍历 |
+
+### 4.8 配套代码
 
 ```rust
 println!("{}", basic_syntax::string_operations_demo());
@@ -230,22 +610,24 @@ println!("{}", basic_syntax::string_operations_demo());
 
 println!("{}", basic_syntax::string_conversion_demo());
 // borrowed=hello, combined=hello world rust
+
+println!("{}", basic_syntax::normalize_username(" Alice Chen "));
+// alice_chen
 ```
 
-### 常见陷阱
+### 4.9 最佳实践总结
 
-```rust
-let chinese = "你好";
-println!("len: {}", chinese.len());         // 6（字节数）
-println!("chars: {}", chinese.chars().count()); // 2（字符数）
-// ❌ 不能用 &chinese[0..1]，因为 1 不是字符边界
-```
-
-### 最佳实践
-
-- **函数参数优先用 `&str`**，这样既能接收字面量，也能接收 `&String`。
-- **需要修改时用 `String`**，或接收 `&mut String`。
-- **遍历用 `.chars()`**，不要用字节索引。
+| 场景 | 推荐类型 | 原因 |
+|------|----------|------|
+| 函数参数（只读） | `&str` | 灵活，零成本，调用方不需要 clone |
+| 函数参数（需要存储） | `&str`，内部 `.to_string()` | 转换在函数内部完成，调用方更简洁 |
+| 函数参数（需要修改） | `&mut String` | 明确表达“会修改”的意图 |
+| 函数返回值 | `String` | 调用方获得所有权 |
+| 结构体字段 | `String`（大多数情况） | 结构体拥有数据 |
+| 结构体字段（引用外部数据） | `&'a str` | 需要生命周期标注 |
+| 字符串字面量 | `&str` / `&'static str` | 数据嵌入二进制，零成本 |
+| 临时拼接 | `format!()` | 返回 String，代码清晰 |
+| 高性能拼接 | `String::with_capacity` + `push_str` | 避免反复分配 |
 
 ---
 

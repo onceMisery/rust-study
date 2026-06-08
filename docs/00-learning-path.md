@@ -54,6 +54,22 @@ cargo run -p engineering_practice --example task_tracker_demo
 cargo run -p blog
 ```
 
+## 深入专题
+
+完成基础学习后，可以通过以下专题深入掌握 Rust 的核心机制：
+
+| 专题 | 文档 | 配套代码 |
+|------|------|----------|
+| 所有权系统 | [深入所有权](deep-dive-01-ownership.md) | `cargo run -p advanced_features --example ownership_tour` |
+| 模块与代码组织 | [模块系统](deep-dive-02-modules.md) | `cargo run -p engineering_practice --example module_tour` |
+| 错误处理 | [错误处理](deep-dive-03-error-handling.md) | `cargo run -p engineering_practice --example error_tour` |
+| 泛型与 Trait | [泛型与特性](deep-dive-04-generics-traits.md) | `cargo run -p advanced_features --example generics_tour` |
+| 宏与智能指针 | [宏与智能指针](deep-dive-05-macros-smart-pointers.md) | `cargo run -p advanced_features --example smart_pointers_tour` |
+| 异步编程 | [异步编程](deep-dive-06-async.md) | `cargo run -p engineering_practice --example async_tour` |
+| 集合与迭代器 | [集合与迭代器](deep-dive-07-collections-iterators.md) | `cargo run -p basic_syntax --example collections_tour` |
+| 模式匹配 | [模式匹配](deep-dive-08-pattern-matching.md) | `cargo run -p advanced_features --example pattern_matching_tour` |
+| 类型转换与 Trait | [类型转换](deep-dive-09-type-conversions.md) | `cargo run -p advanced_features --example type_conversions_tour` |
+
 ## 建议节奏
 
 1. 每读完一节，运行对应 example。

@@ -680,3 +680,103 @@ pub fn iterator_lazy_demo() -> String {
 
     format!("100 以内 3 的倍数的前 5 个平方: {:?}", result)
 }
+
+// ============================================================
+// 主题 13：集合深入
+// ============================================================
+
+/// 演示 Vec 的常用操作。
+pub fn vec_operations() -> String {
+    let mut numbers = vec![3, 1, 4];
+    numbers.push(1);
+    numbers.push(5);
+    numbers.insert(0, 9);  // 头部插入
+    numbers.sort();
+    numbers.dedup();  // 去重（需先排序）
+
+    let popped = numbers.pop();  // Option<i32>
+    let contains = numbers.contains(&4);
+    let found = numbers.iter().position(|&x| x > 3);
+
+    format!(
+        "sorted_dedup={:?}, popped={:?}, contains_4={}, first_gt_3={:?}",
+        numbers, popped, contains, found
+    )
+}
+
+/// 演示 HashMap 的常用操作。
+pub fn hashmap_operations() -> String {
+    use std::collections::HashMap;
+    let mut scores: HashMap<String, i32> = HashMap::new();
+    scores.insert("Alice".into(), 95);
+    scores.insert("Bob".into(), 87);
+    scores.insert("Charlie".into(), 92);
+
+    // entry API：存在则不插入，不存在则插入默认值
+    scores.entry("Diana".into()).or_insert(80);
+    // entry API：存在则修改
+    *scores.entry(String::from("Alice")).or_insert(0) += 5;
+
+    // 查找
+    let bob_score = scores.get("Bob");  // Option<&i32>
+    let missing = scores.get("Eve");    // None
+
+    // 过滤
+    let high_scorers: Vec<_> = scores
+        .iter()
+        .filter(|(_, &score)| score >= 90)
+        .map(|(name, _)| name.as_str())
+        .collect();
+
+    format!(
+        "scores={:?}, bob={:?}, eve={:?}, high={:?}",
+        scores, bob_score, missing, high_scorers
+    )
+}
+
+/// 演示 HashSet 的集合运算。
+pub fn hashset_operations() -> String {
+    use std::collections::HashSet;
+    let frontend: HashSet<_> = ["HTML", "CSS", "JavaScript"].iter().cloned().collect();
+    let backend: HashSet<_> = ["Rust", "Go", "JavaScript"].iter().cloned().collect();
+
+    let intersection: Vec<_> = frontend.intersection(&backend).cloned().collect();
+    let union: Vec<_> = frontend.union(&backend).cloned().collect();
+    let diff: Vec<_> = frontend.difference(&backend).cloned().collect();
+
+    format!(
+        "交集={:?}, 并集={:?}, 差集(frontend-backend)={:?}",
+        intersection, union, diff
+    )
+}
+
+/// 演示迭代器的高级用法。
+pub fn iterator_advanced() -> String {
+    let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    // chunks: 分组
+    let chunks: Vec<_> = data.chunks(3).collect();
+
+    // windows: 滑动窗口
+    let windows: Vec<_> = data.windows(3).collect();
+
+    // fold: 累积
+    let product: i32 = data.iter().fold(1, |acc, &x| acc * x);
+
+    // scan: 带状态的 map
+    let running_sum: Vec<_> = data
+        .iter()
+        .scan(0, |state, &x| {
+            *state += x;
+            Some(*state)
+        })
+        .collect();
+
+    format!(
+        "chunks={:?}, windows前3={:?}, product={}, running_sum={:?}",
+        chunks.len(),
+        &windows[..3.min(windows.len())],
+        product,
+        running_sum
+    )
+}

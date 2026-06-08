@@ -7,7 +7,9 @@
 //! assert_eq!(Point { x: 1, y: 2 }.summary(), "Point(1, 2)");
 //! ```
 
+use std::cell::RefCell;
 use std::fmt::Display;
+use std::rc::Rc;
 
 // ============================================================
 // 主题 1：所有权 — 移动语义与克隆
@@ -553,4 +555,265 @@ pub fn nll_demo() -> String {
     data.push(4);
 
     format!("修改后: {:?}", data)
+}
+
+// ============================================================
+// 主题 10：智能指针
+// ============================================================
+
+/// 用 Box 实现递归类型：链表。
+///
+/// Rust 编译器无法确定递归类型的大小，所以必须用 Box 放在堆上。
+#[derive(Debug)]
+pub enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+impl List {
+    pub fn to_vec(&self) -> Vec<i32> {
+        let mut result = Vec::new();
+        let mut current = self;
+        loop {
+            match current {
+                List::Cons(value, next) => {
+                    result.push(*value);
+                    current = next;
+                }
+                List::Nil => break,
+            }
+        }
+        result
+    }
+}
+
+/// 演示 Box 的基本用法：堆上分配。
+pub fn box_demo() -> String {
+    let boxed = Box::new(42);
+    let list = List::Cons(1, Box::new(List::Cons(2, Box::new(List::Cons(3, Box::new(List::Nil))))));
+    format!("Box值: {}, 链表: {:?}", boxed, list.to_vec())
+}
+
+/// 演示 Rc：多个所有者共享同一份数据。
+///
+/// Rc 只在单线程中使用。多线程场景用 Arc。
+pub fn rc_demo() -> String {
+    let shared = Rc::new(String::from("共享数据"));
+    let owner1 = Rc::clone(&shared);
+    let owner2 = Rc::clone(&shared);
+    format!(
+        "引用计数: {}, owner1='{}', owner2='{}'",
+        Rc::strong_count(&shared),
+        owner1,
+        owner2
+    )
+}
+
+/// 演示 RefCell：运行时借用检查（内部可变性）。
+///
+/// RefCell 允许在不可变上下文中修改数据，借用规则在运行时检查。
+pub fn refcell_demo() -> String {
+    let data = RefCell::new(vec![1, 2, 3]);
+    data.borrow_mut().push(4); // 可变借用
+    data.borrow_mut().push(5);
+    let snapshot = data.borrow().clone(); // 不可变借用
+    format!("RefCell内容: {:?}", snapshot)
+}
+
+// ============================================================
+// 主题 11：宏基础
+// ============================================================
+
+/// 声明式宏示例：自定义 vec! 的简化版。
+///
+/// 宏在编译时展开，没有运行时开销。
+#[macro_export]
+macro_rules! my_vec {
+    ( $( $x:expr ),* ) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                temp_vec.push($x);
+            )*
+            temp_vec
+        }
+    };
+}
+
+/// 演示宏的展开和使用。
+pub fn macro_demo() -> String {
+    let v = my_vec![1, 2, 3, 4, 5];
+    let greet = format!("Hello, {}!", "Rust"); // format! 也是宏
+    let printed = format!("{:?}", vec![10, 20]); // println! 的格式化版本
+    format!("my_vec: {:?}, format: {}, debug: {}", v, greet, printed)
+}
+
+// ============================================================
+// 主题 12：模式匹配深入
+// ============================================================
+
+/// 演示 match 解构元组、结构体和嵌套模式。
+pub fn pattern_destructuring() -> String {
+    // 解构元组
+    let point = (3, 7);
+    let description = match point {
+        (0, 0) => "原点",
+        (_x, 0) => "x轴上",
+        (0, _y) => "y轴上",
+        (x, y) if x == y => "对角线上",
+        (_x, _y) => "普通点",
+    };
+
+    // 解构结构体
+    #[derive(Debug)]
+    struct Color { r: u8, g: u8, b: u8 }
+    let color = Color { r: 255, g: 128, b: 0 };
+    let color_name = match color {
+        Color { r: 255, g: 0, b: 0 } => "纯红",
+        Color { r: 0, g: 255, b: 0 } => "纯绿",
+        Color { r: 0, g: 0, b: 255 } => "纯蓝",
+        Color { r, g, b } if r > 200 && g > 100 && b < 50 => "暖色",
+        Color { r: _, g: _, b: _ } => "其他颜色",
+    };
+
+    format!("点: {}, 颜色: {}", description, color_name)
+}
+
+/// 演示 match 守卫、@ 绑定和嵌套模式。
+pub fn pattern_guards_and_bindings() -> String {
+    let numbers = vec![1, -2, 3, -4, 5];
+    let classified: Vec<String> = numbers
+        .iter()
+        .map(|&n| match n {
+            n @ 1..=10 => format!("{} 是小正数", n),
+            n @ -10..=-1 => format!("{} 是小负数", n),
+            n if n > 10 => format!("{} 是大正数", n),
+            n => format!("{} 超出范围", n),
+        })
+        .collect();
+
+    // @ 绑定：匹配并同时捕获值
+    let msg = Some("hello");
+    let result = match msg {
+        some @ Some(s) if s.len() > 3 => format!("长消息: {:?}", some),
+        Some(s) => format!("短消息: {}", s),
+        None => "无消息".to_string(),
+    };
+
+    format!("分类: {:?}\n@绑定: {}", classified, result)
+}
+
+/// 演示 if let 和 while let。
+pub fn if_let_while_let() -> String {
+    // if let：只关心一种匹配
+    let value: Option<i32> = Some(42);
+    let if_let_result = if let Some(v) = value {
+        format!("找到: {}", v)
+    } else {
+        "未找到".to_string()
+    };
+
+    // while let：循环解构
+    let mut stack = vec![1, 2, 3];
+    let mut popped = Vec::new();
+    while let Some(top) = stack.pop() {
+        popped.push(top);
+    }
+
+    // let else：匹配失败时提前返回
+    let parse_result: Result<i32, _> = "42".parse();
+    let number = match parse_result {
+        Ok(n) => n,
+        Err(_) => -1,
+    };
+
+    format!(
+        "if let: {}, while let弹出: {:?}, let: {}",
+        if_let_result, popped, number
+    )
+}
+
+// ============================================================
+// 主题 13：类型转换与常见 trait
+// ============================================================
+
+/// 演示 From 和 Into trait。
+pub fn from_into_demo() -> String {
+    // From: &str -> String
+    let s: String = String::from("hello");
+    // Into: &str -> String（From 的反向）
+    let s2: String = "world".into();
+
+    // 自定义 From 实现
+    #[derive(Debug)]
+    struct Celsius(f64);
+    impl From<f64> for Celsius {
+        fn from(f: f64) -> Self { Celsius((f - 32.0) * 5.0 / 9.0) }
+    }
+
+    let temp = Celsius::from(212.0);  // 100°C
+
+    format!("From: '{}', Into: '{}', Celsius: {:?}", s, s2, temp)
+}
+
+/// 演示 AsRef 和 AsMut。
+pub fn as_ref_demo() -> String {
+    // AsRef 允许函数接受多种字符串类型
+    fn print_len<T: AsRef<str>>(s: T) -> usize {
+        s.as_ref().len()
+    }
+
+    let len1 = print_len("hello");           // &str
+    let len2 = print_len(String::from("world"));  // String
+    let len3 = print_len(&String::from("rust")); // &String
+
+    format!("len('hello')={}, len(String)= {}, len(&String)={}", len1, len2, len3)
+}
+
+/// 演示 TryFrom 和 TryInto（可能失败的转换）。
+pub fn try_from_demo() -> String {
+    use std::convert::TryFrom;
+
+    // i64 -> i32（可能溢出）
+    let big: i64 = 42;
+    let small = i32::try_from(big);  // Ok(42)
+
+    let too_big: i64 = i64::MAX;
+    let overflow = i32::try_from(too_big);  // Err
+
+    format!("i64->i32: {:?}, 溢出: {:?}", small, overflow)
+}
+
+/// 演示 Deref trait 的自动解引用链。
+pub fn deref_demo() -> String {
+    let boxed_string = Box::new(String::from("hello world"));
+    // Box<String> -> &String -> &str（自动 Deref 链）
+    let s: &str = &boxed_string;
+
+    let len = boxed_string.len();  // Box<String> -> String -> str::len()
+
+    format!("Deref: '{}', len={}", s, len)
+}
+
+/// 演示常见的类型转换模式。
+pub fn conversion_patterns() -> String {
+    // 数字转换
+    let n: u32 = 42;
+    let big: u64 = n.into();       // 小类型 -> 大类型，不会失败
+    let small: u8 = 42;             // 直接赋值
+    let _back: u32 = small as u32;  // as 关键字（简单但不安全）
+
+    // 字符串转换
+    let num_str = "123";
+    let num: i32 = num_str.parse().unwrap_or(0);
+    let back_str = num.to_string();
+
+    // 集合转换
+    let vec = vec![1, 2, 3, 2, 1];
+    let set: std::collections::HashSet<_> = vec.into_iter().collect();
+
+    format!(
+        "big={}, small={}, back={}, parse={}, set_len={}",
+        big, small, back_str, num, set.len()
+    )
 }
